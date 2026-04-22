@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "matcher": {
+          "tools": ["bash", "read", "grep", "glob", "run_terminal_cmd", "read_file"]
+        },
+        "command": "node ~/.cursor/hooks/truncate-output.js"
+      }
+    ]
+  }
+}

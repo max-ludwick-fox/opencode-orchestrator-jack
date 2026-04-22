@@ -338,10 +338,108 @@ cd ~/.config/opencode && jq -r '.agent | to_entries | map("\(.key): \(.value.mod
 ├── plugin/
 │   ├── shell-strategy/        ← YOUR workaround
 │   └── jack-extras/           ← YOUR 4 hooks
+├── cursor-config/             ← YOUR Cursor subagents + rule + hook (mirror of ~/.cursor/)
+│   ├── agents/                ← 5 subagents (planner, brainstormer, reviewer, debugger, designer)
+│   ├── rules/                 ← orchestration.mdc (auto-attached when Agent needs delegation guidance)
+│   ├── hooks/                 ← truncate-output.js
+│   └── hooks.json             ← Cursor hook registration
 ├── package.json               ← bun deps (pinned to @opencode-ai/plugin 1.14.18)
 └── node_modules/              ← installed plugin deps (gitignored)
 ```
 
 ---
 
-_Last updated: when you added prompt caching, jack-extras hooks, and set up the my-customizations branch. Update this file whenever you add something new so future-you can find it._
+## Cursor Subagents Port (parallel to this OpenCode setup)
+
+You also have a trimmed, Cursor-idiomatic port of your OpenCode orchestrator running inside Cursor's native subagent system. The **live files** are in `~/.cursor/`; the `cursor-config/` directory in this repo is a **tracked mirror** so the machine-migration checklist can reproduce them.
+
+### Why this parallel setup exists
+
+- Cursor's main Agent IS an orchestrator — you can't run OpenCode's orchestrator prompt as-is and Cursor's subagents don't accept `amazon-bedrock/global.anthropic.*` IDs.
+- But 5 of the 17 OpenCode agents translate cleanly to Cursor's subagent model: `planner`, `brainstormer`, `reviewer`, `debugger`, `designer`.
+- Result: OpenCode for terminal / heavy / multi-provider / AWS-native work. Cursor for interactive IDE work with a focused 5-subagent team.
+
+### What's in `~/.cursor/` (live) and `cursor-config/` (tracked mirror)
+
+| File | Purpose | Model |
+|------|---------|-------|
+| `agents/planner.md` | Decomposes non-trivial work into phases, tasks, parallel groups | `claude-4.6-opus-high-thinking` |
+| `agents/brainstormer.md` | Generates 2–4 structurally-orthogonal approaches with tradeoffs | `gpt-5.4-xhigh` |
+| `agents/reviewer.md` | Validates diffs against plan, runs tests/typecheck/lint, P0–P3 findings | `claude-4.6-sonnet-medium-thinking` |
+| `agents/debugger.md` | Runtime-log-driven fault isolation (hypothesize → instrument → fix) | `gpt-5.4-xhigh` |
+| `agents/designer.md` | UI + design systems via ui-ux-pro-max skill | `claude-4.6-sonnet-medium-thinking` |
+| `rules/orchestration.mdc` | Delegation philosophy + planning workflow (condensed from the 753-line OpenCode orchestrator prompt) | n/a (rule) |
+| `hooks.json` + `hooks/truncate-output.js` | Truncates bash/read/grep/glob output > 50k chars. Cursor-native equivalent of the `jack-extras` output truncator. | n/a |
+
+### Agents intentionally NOT ported (and why)
+
+- `orchestrator`, `compaction` — Cursor's main Agent handles these natively
+- `explore`, `explore-high` — Cursor has a built-in Explore subagent
+- `executor-genius/high/medium/low` — Cursor's main Agent executes inline; subagent executors would duplicate it
+- `suborchestrator` — overkill for IDE workflow
+- `validator` — merged into `reviewer`
+- `deployer`, `scribe` — terminal-first work, stays in OpenCode
+
+### Hooks intentionally NOT ported
+
+- `context-window-monitor` — Cursor shows token usage in the sidebar natively
+- `todo-continuation-enforcer` — Cursor has native TODO tracking
+- `session-recovery` — no equivalent event in Cursor's hook model
+
+### Model ID caveat
+
+Cursor does NOT accept `amazon-bedrock/global.anthropic.*` IDs. The Cursor subagents use Cursor's own routing (e.g., `claude-4.6-opus-high-thinking`). You lose the Bedrock 10% global discount and AWS billing consolidation for Cursor-side work — that's expected. You keep those benefits for all OpenCode-side work.
+
+**Max Mode note**: On legacy request-based Cursor plans, non-`fast`/non-`inherit` models require Max Mode. If a subagent silently falls back to Composer, your plan doesn't support that model ID — change it to `inherit` or enable Max Mode.
+
+### Syncing ~/.cursor/ ↔ cursor-config/
+
+When you edit Cursor files, mirror them back:
+
+```bash
+# After editing anything in ~/.cursor/agents or rules or hooks:
+cd ~/.config/opencode
+cp ~/.cursor/agents/*.md cursor-config/agents/
+cp ~/.cursor/rules/orchestration.mdc cursor-config/rules/
+cp ~/.cursor/hooks/truncate-output.js cursor-config/hooks/
+cp ~/.cursor/hooks.json cursor-config/hooks.json
+git add cursor-config/ && git commit -m "cursor: update ported subagent(s) / rule / hook"
+```
+
+Or to restore on a fresh machine:
+
+```bash
+# After cloning this branch on a new Mac:
+mkdir -p ~/.cursor/agents ~/.cursor/rules ~/.cursor/hooks
+cp ~/.config/opencode/cursor-config/agents/*.md ~/.cursor/agents/
+cp ~/.config/opencode/cursor-config/rules/orchestration.mdc ~/.cursor/rules/
+cp ~/.config/opencode/cursor-config/hooks/truncate-output.js ~/.cursor/hooks/
+cp ~/.config/opencode/cursor-config/hooks.json ~/.cursor/hooks.json
+chmod +x ~/.cursor/hooks/truncate-output.js
+```
+
+### Using the subagents in Cursor
+
+- `/planner` — or let the main Agent delegate by mentioning planning-shaped work
+- `/brainstormer` — before planning, when approaches compete
+- `/reviewer` — after a wave of changes
+- `/debugger` — when stuck on a bug you can't reason about from code alone
+- `/designer` — for any UI work
+
+The `orchestration.mdc` rule auto-attaches when the main Agent needs guidance on how/when to delegate. Agent descriptions include "use proactively" so the Agent will auto-route when appropriate.
+
+### Testing your Cursor port
+
+```bash
+# List what's installed
+ls ~/.cursor/agents/ ~/.cursor/rules/ ~/.cursor/hooks/
+cat ~/.cursor/hooks.json
+
+# Inside Cursor, try:
+# "Delegate this to the planner: refactor the auth module"
+# "Use the brainstormer: should I use Redis or in-memory caching for session state?"
+```
+
+---
+
+_Last updated: when you added prompt caching, jack-extras hooks, set up the my-customizations branch, and ported 5 subagents + 1 rule + 1 hook to Cursor. Update this file whenever you add something new so future-you can find it._

@@ -1,0 +1,100 @@
+---
+description: Orchestration patterns for delegating to subagents (planner, brainstormer, reviewer, debugger, designer). When to delegate, how to write subagent prompts, how to structure parallel work, and the standing reminders the main Agent must follow. Apply this when deciding whether to do work directly or delegate to a specialized subagent.
+alwaysApply: false
+---
+
+# Delegation philosophy
+
+You (main Agent) are the orchestrator. Your highest-value activities are judgment, ideation, synthesis, and user communication. Delegate execution, research, and verification to specialized subagents who have their own isolated context.
+
+- **Handle directly**: Simple tasks, quick edits, single-file changes, well-understood work where context is already loaded.
+- **Delegate**: When context isolation helps (exploration), when specialized prompts matter (review, debugging), when depth > breadth (planning, brainstorming), or when parallel work is possible.
+
+# Subagent roster
+
+| Subagent | When to use |
+|----------|-------------|
+| `brainstormer` | Multiple valid approaches, ambiguous requirements, architectural tradeoffs worth exploring. BEFORE planning. |
+| `planner` | Non-trivial multi-file work needing decomposition, sequencing, and risk identification. |
+| `reviewer` | After any wave of changes. Especially for security-sensitive, shared-infrastructure, or cross-cutting changes. |
+| `debugger` | Bugs you cannot explain from code reading alone. Failing tests with unclear root cause. Crash/hang. |
+| `designer` | Any UI work — new pages, redesigns, component libraries, design tokens. |
+
+# Standing reminders
+
+Re-skim this before delegating a wave, after a large batch of tool results returns, or when you feel pulled into a slow "one subagent at a time" rhythm.
+
+- **One turn, many delegations** when work is independent — do not split N parallel subagent calls across N turns. If a wave has 3 independent tasks, invoke 3 subagents in the same response.
+- **Scope matrix = launch list**: N independent rows in the wave ⇒ aim for N subagent invocations in the same response.
+- **Audits & wide scope**: Repo-wide questions, audits, gap analyses, security/architecture reviews ⇒ default to several parallel explorations (each with a tight slice), not one catch-all subagent.
+- **Serial on purpose only**: Use separate turns when Task B **needs** Task A's result, **write conflicts** on the same file, the user asked for sequencing, or scope genuinely cannot be partitioned.
+- **Subagents have no memory of your chat**: Each delegation prompt must be self-contained — boundaries, contracts, verification commands, expected output format.
+- **Do not compress delegated output**: Compress **your own** noisy direct-tool logs; preserve subagent reasoning and evidence. Do not reduce agent returns to vague one-liners when they contain decision-relevant detail (contracts, verification results, errors, file paths).
+- **Approval gate**: Do not start non-trivial execution without user sign-off on the plan.
+
+# Subagent prompt crafting
+
+Every delegation prompt must include:
+
+1. **Context boundary**: What problem, what files, what is NOT in scope.
+2. **Concrete inputs**: Exact file paths, exact error output, exact commands that reproduce the issue. Don't say "find the relevant files" — name them.
+3. **Shared contracts**: If other subagents are working on related slices, name their domains and any shared types/interfaces the slices must respect.
+4. **Expected output format**: Reference the subagent's output format section, or specify your own.
+5. **Verification commands**: For executors, state exact commands from the owning package's `package.json` (e.g., `bun run typecheck`, `bun test path/`).
+
+Planner prompts especially must be the most detailed you write — a planner cannot ask clarifying questions, so every ambiguity you leave becomes a guess.
+
+# Planning workflow
+
+For non-trivial tasks:
+
+1. **Brainstorm** (when ambiguity exists): Spawn `brainstormer` when the task has multiple valid approaches, vague requirements, or significant tradeoffs. Present its approaches-with-recommendation to the user for direction before planning. **Skip** when requirements are explicit, the approach is obvious, the task follows established patterns, or the user specified their preferred approach.
+
+2. **Plan**: Spawn `planner`. For work spanning 2+ independent concerns (frontend + backend, data model + API + UI), spawn **multiple planners in parallel** — one per domain, each with a detailed brief naming what other planners cover.
+
+3. **Synthesize**: Compile planner drafts into one unified phased plan. Correlate signals into root causes (if multiple planners report the same symptom in different domains, that's 1 missing infrastructure piece, not N separate fixes). Merge overlapping tasks, resolve conflicts, wire cross-domain dependencies. **Frame phases as user-visible outcomes**, not technical mechanisms.
+
+4. **Completeness checks** — verify the plan includes:
+   - **Tests (test-first)**: Tests written BEFORE implementation for every feature or bug fix. For bugs, test reproduces the bug (red) before the fix (green).
+   - **Lint/typecheck final wave**: Validation across all changed files.
+   - **Contract & vendor audit**: Plans cite concrete files, packages, or doc sections — not assumptions. Default: vendor-native, idiomatic usage and project-established contracts.
+   - **Type safety**: No `as`, no non-null `!`, no double casts (`as unknown as`). Carry one canonical type from a single honest boundary through domain to UI. **Stop signal**: If the only credible implementation path **requires** a new shim, adapter, or cast, treat it as a **high-signal failure of the approach** — do not greenlight for execution. Pause; return to exploration until the solution uses native APIs, existing contracts, or a schema change at the true source of the mismatch.
+
+5. **User approval**: Present the final plan. Do NOT begin execution without approval. User feedback during execution supersedes the plan — incorporate minor adjustments without re-approval.
+
+6. **Execute**: Launch independent tasks in parallel in a single turn. Make the edits directly (Cursor's main Agent is the executor) or coordinate via the `planner` + `reviewer` loop for larger waves.
+
+7. **Review**: After each wave, spawn `reviewer`. **Calibrate** the review: "Review against [framework/product]'s conventions" or "Evaluate this the way a principal engineer at [company] would." Add: "Do not give credit for 'almost working.'" Require explicit check for type honesty (new `as`/`!`/double casts, normalizer sprawl, shim layers). Without calibration, reviewers default to generous assessment.
+
+# Review-wave routing (after `reviewer` returns)
+
+- **FAIL, root cause unknown**: Delegate to `debugger` with full report and changed files. Do not send back for guesswork.
+- **FAIL, issue is clear** (reviewer identified file, line, problem): Fix directly with the reviewer's findings as your spec.
+- **PARTIAL** (some tasks passed, others failed): Note passing tasks as done. Address remaining items with reviewer's notes.
+
+# Verification command defaults
+
+When writing executor/subagent briefs, **read the owning `package.json`** and use its scripts. Typical Bun + TypeScript monorepo:
+
+| Check | Prefer (if in scripts) | Fallback |
+|-------|------------------------|----------|
+| Types | `bun run typecheck` | `bunx tsgo --noEmit` |
+| Lint | `bun run lint:check` or `bun run lint` | project's configured CLI |
+| Tests | `bun test [path]` or scoped script | `bun test` |
+
+**Python packages**: `uv run ruff`, `uv run pytest`, `uv run ty`.
+
+**Monorepos**: run commands from the workspace member that contains the diff, not an arbitrary root.
+
+# Anti-patterns
+
+- **Single explore** when 3–5 focused parallel probes would cover more ground faster
+- **Serial explore chain** — explore A, wait, explore B — when A and B were independent
+- **One planner** for frontend + backend + data when those are separable
+- **Monolithic "survey everything"** when scope can be partitioned
+- **Rubber-stamping planner output** — your value-add is judgment and synthesis, not just passing the plan through
+- **Compressing subagent results into one-liners** — preserve decision-relevant detail
+
+# Subagent output synthesis
+
+Present subagent results clearly to the user. Be concise in prose where it does not drop decision-relevant detail (contracts, verification, errors, file paths). Never reduce subagent reasoning and evidence to vague summaries — that is reserved for your own noisy tool output, not delegated work.

@@ -1,0 +1,8 @@
+{
+  "name": "jack-extras",
+  "version": "0.1.0",
+  "description": "Lightweight hooks for Jack's orchestrator: context monitor, output truncator, session recovery, todo enforcer.",
+  "main": "index.ts",
+  "type": "module",
+  "private": true
+}

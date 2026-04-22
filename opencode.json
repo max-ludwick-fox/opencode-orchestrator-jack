@@ -8,7 +8,8 @@
     "@nick-vi/opencode-type-inject",
     "@tarquinen/opencode-dcp@latest",
     "@franlol/opencode-md-table-formatter@latest",
-    "@mohak34/opencode-notifier@latest"
+    "@mohak34/opencode-notifier@latest",
+    "./plugin/jack-extras/index.ts"
   ],
   "instructions": [
     "./plugin/shell-strategy/shell_strategy.md"
@@ -58,11 +59,31 @@
       ]
     }
   },
+  "provider": {
+    "amazon-bedrock": {
+      "options": {
+        "setCacheKey": true,
+        "timeout": 600000
+      }
+    },
+    "openai": {
+      "options": {
+        "setCacheKey": true,
+        "timeout": 600000
+      }
+    },
+    "anthropic": {
+      "options": {
+        "setCacheKey": true,
+        "timeout": 600000
+      }
+    }
+  },
   "agent": {
     "orchestrator": {
       "description": "Primary agent that plans, ideates, delegates, and synthesizes — Claude Opus 4.7 1m",
       "mode": "primary",
-      "model": "amazon-bedrock/anthropic.claude-opus-4-7-1m",
+      "model": "amazon-bedrock/global.anthropic.claude-opus-4-7",
       "reasoningEffort": "max",
       "prompt": "{file:./prompts/orchestrator.txt}",
       "permission": {
@@ -121,7 +142,7 @@
     "executor-genius": {
       "description": "Highest-complexity code execution — Claude Opus 4.7 1m with high reasoning",
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-opus-4-7-1m",
+      "model": "amazon-bedrock/global.anthropic.claude-opus-4-7",
       "reasoningEffort": "high",
       "prompt": "{file:./prompts/executor.txt}",
       "tools": {
@@ -155,7 +176,7 @@
     "executor-medium": {
       "description": "Medium-complexity code execution — Claude Sonnet 4.6 1m",
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-6-1m",
+      "model": "amazon-bedrock/global.anthropic.claude-sonnet-4-6",
       "reasoningEffort": "high",
       "prompt": "{file:./prompts/executor.txt}",
       "tools": {
@@ -189,7 +210,7 @@
     "suborchestrator": {
       "description": "Manages focused multi-file campaigns — lint fixes, mechanical refactors, migrations — Claude Sonnet 4.6 1m with max reasoning",
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-6-1m",
+      "model": "amazon-bedrock/global.anthropic.claude-sonnet-4-6",
       "reasoningEffort": "max",
       "prompt": "{file:./prompts/suborchestrator.txt}",
       "tools": {
@@ -249,7 +270,7 @@
     "designer": {
       "description": "UI/UX design specialist — generates design systems and implements UI code using ui-ux-pro-max skill — Claude Sonnet 4.6 1m",
       "mode": "subagent",
-      "model": "amazon-bedrock/anthropic.claude-sonnet-4-6-1m",
+      "model": "amazon-bedrock/global.anthropic.claude-sonnet-4-6",
       "reasoningEffort": "high",
       "prompt": "{file:./prompts/designer.txt}",
       "tools": {
@@ -310,9 +331,9 @@
       }
     },
     "brainstormer": {
-      "description": "Explores problem spaces, generates approaches with tradeoffs, recommends direction — Gemini 3.1 Pro",
+      "description": "Explores problem spaces, generates approaches with tradeoffs, recommends direction — GPT-5.4 Pro with high reasoning",
       "mode": "subagent",
-      "model": "google/gemini-3.1-pro-preview",
+      "model": "openai/gpt-5.4-pro",
       "prompt": "{file:./prompts/brainstormer.txt}",
       "reasoningEffort": "high",
       "tools": {
@@ -328,11 +349,15 @@
     }
   },
   "mcp": {
+    "think": {
+      "type": "local",
+      "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
     "doc-loader": {
       "type": "local",
       "command": [
         "uvx",
-        "awslabs.document-loader-mcp-server@latest"
+        "awslabs.document-loader-mcp-server"
       ],
       "environment": {
         "FASTMCP_LOG_LEVEL": "ERROR"
@@ -355,24 +380,16 @@
         "uvx",
         "--with",
         "botocore[crt]",
-        "awslabs.cloudwatch-mcp-server@latest"
+        "awslabs.cloudwatch-mcp-server"
       ],
       "environment": {
-        "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default"
+        "AWS_REGION": "{env:AWS_REGION}",
+        "AWS_PROFILE": "{env:AWS_PROFILE}"
       }
     },
     "aws-knowledge": {
       "type": "remote",
       "url": "https://knowledge-mcp.global.api.aws"
-    },
-    "context7": {
-      "type": "remote",
-      "url": "https://mcp.context7.com/mcp"
-    },
-    "atlassian": {
-      "type": "remote",
-      "url": "https://mcp.atlassian.com/v1/mcp"
     },
     "aws-iac": {
       "type": "local",
@@ -380,11 +397,11 @@
         "uvx",
         "--with",
         "botocore[crt]",
-        "awslabs.aws-iac-mcp-server@latest"
+        "awslabs.aws-iac-mcp-server"
       ],
       "environment": {
-        "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default"
+        "AWS_REGION": "{env:AWS_REGION}",
+        "AWS_PROFILE": "{env:AWS_PROFILE}"
       }
     },
     "bedrock-kb-retrieval": {
@@ -393,11 +410,11 @@
         "uvx",
         "--with",
         "botocore[crt]",
-        "awslabs.bedrock-kb-retrieval-mcp-server@latest"
+        "awslabs.bedrock-kb-retrieval-mcp-server"
       ],
       "environment": {
-        "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default"
+        "AWS_REGION": "{env:AWS_REGION}",
+        "AWS_PROFILE": "{env:AWS_PROFILE}"
       }
     },
     "ccapi": {
@@ -406,18 +423,18 @@
         "uvx",
         "--with",
         "botocore[crt]",
-        "awslabs.ccapi-mcp-server@latest"
+        "awslabs.ccapi-mcp-server"
       ],
       "environment": {
-        "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default"
+        "AWS_REGION": "{env:AWS_REGION}",
+        "AWS_PROFILE": "{env:AWS_PROFILE}"
       }
     },
     "chrome_devtools": {
       "type": "local",
       "command": [
         "npx",
-        "chrome-devtools-mcp@latest"
+        "chrome-devtools-mcp"
       ],
       "enabled": true
     },
@@ -425,15 +442,17 @@
       "type": "local",
       "command": [
         "uvx",
-        "awslabs.git-repo-research-mcp-server@latest"
+        "awslabs.git-repo-research-mcp-server"
       ],
       "environment": {
+        "AWS_REGION": "{env:AWS_REGION}",
+        "AWS_PROFILE": "{env:AWS_PROFILE}",
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
     },
     "exa": {
       "type": "remote",
-      "url": "https://mcp.exa.ai/mcp?exaApiKey={env:EXA_API_KEY}"
+      "url": "https://mcp.exa.ai/mcp?exaApiKey={env:EXA_API_KEY}&tools=web_search_exa,web_search_advanced_exa,get_code_context_exa,crawling_exa,company_research_exa,people_search_exa,deep_researcher_start,deep_researcher_check"
     },
     "ecs": {
       "type": "local",
@@ -441,11 +460,11 @@
         "uvx",
         "--with",
         "botocore[crt]",
-        "awslabs.ecs-mcp-server@latest"
+        "awslabs.ecs-mcp-server"
       ],
       "environment": {
-        "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default"
+        "AWS_REGION": "{env:AWS_REGION}",
+        "AWS_PROFILE": "{env:AWS_PROFILE}"
       }
     },
     "cloudtrail": {
@@ -454,11 +473,11 @@
         "uvx",
         "--with",
         "botocore[crt]",
-        "awslabs.cloudtrail-mcp-server@latest"
+        "awslabs.cloudtrail-mcp-server"
       ],
       "environment": {
-        "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default"
+        "AWS_REGION": "{env:AWS_REGION}",
+        "AWS_PROFILE": "{env:AWS_PROFILE}"
       }
     },
     "bedrock-agentcore": {
@@ -467,23 +486,13 @@
         "uvx",
         "--with",
         "botocore[crt]",
-        "awslabs.amazon-bedrock-agentcore-mcp-server@latest"
+        "awslabs.amazon-bedrock-agentcore-mcp-server"
       ],
       "environment": {
-        "AWS_REGION": "us-west-2",
-        "AWS_PROFILE": "default",
+        "AWS_REGION": "{env:AWS_REGION}",
+        "AWS_PROFILE": "{env:AWS_PROFILE}",
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
-    },
-    "vibe_kanban": {
-      "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "vibe-kanban@latest",
-        "--mcp"
-      ],
-      "enabled": true
     }
   }
 }

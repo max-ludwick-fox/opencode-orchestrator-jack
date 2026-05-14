@@ -355,7 +355,7 @@ You also have a trimmed, Cursor-idiomatic port of your OpenCode orchestrator run
 
 ### Why this parallel setup exists
 
-- Cursor's main Agent IS an orchestrator — you can't run OpenCode's orchestrator prompt as-is and Cursor's subagents don't accept `amazon-bedrock/global.anthropic.*` IDs.
+- Cursor's main Agent IS an orchestrator — you can't run OpenCode's orchestrator prompt as-is and Cursor's subagents don't accept OpenCode Bedrock strings like `amazon-bedrock/anthropic.claude-*`.
 - But 5 of the 17 OpenCode agents translate cleanly to Cursor's subagent model: `planner`, `brainstormer`, `reviewer`, `debugger`, `designer`.
 - Result: OpenCode for terminal / heavy / multi-provider / AWS-native work. Cursor for interactive IDE work with a focused 5-subagent team.
 
@@ -388,7 +388,7 @@ You also have a trimmed, Cursor-idiomatic port of your OpenCode orchestrator run
 
 ### Model ID caveat
 
-Cursor does NOT accept `amazon-bedrock/global.anthropic.*` IDs. The Cursor subagents use Cursor's own routing (e.g., `claude-4.6-opus-high-thinking`). You lose the Bedrock 10% global discount and AWS billing consolidation for Cursor-side work — that's expected. You keep those benefits for all OpenCode-side work.
+Cursor does NOT accept OpenCode Bedrock model strings (for example `amazon-bedrock/anthropic.claude-opus-4-7`). The Cursor subagents use Cursor's own routing (e.g., `claude-4.6-opus-high-thinking`). You lose direct AWS Bedrock billing consolidation for Cursor-side work — that's expected. You keep Bedrock-backed routing for all OpenCode-side work.
 
 **Max Mode note**: On legacy request-based Cursor plans, non-`fast`/non-`inherit` models require Max Mode. If a subagent silently falls back to Composer, your plan doesn't support that model ID — change it to `inherit` or enable Max Mode.
 

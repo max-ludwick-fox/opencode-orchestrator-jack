@@ -493,6 +493,16 @@
         "AWS_PROFILE": "{env:AWS_PROFILE}",
         "FASTMCP_LOG_LEVEL": "ERROR"
       }
+    },
+    "vibe_kanban": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "vibe-kanban@latest",
+        "--mcp"
+      ],
+      "enabled": true
     }
   }
 }

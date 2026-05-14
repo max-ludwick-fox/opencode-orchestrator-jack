@@ -37,7 +37,7 @@ bun install
 
 ### 3. Configure providers
 
-Create `~/.config/opencode/.env` (or set env vars) with your API keys:
+Create `~/.config/opencode/.env` (or set env vars) with your API keys. See `.env.example` for names OpenCode interpolates via `{env:…}` in `opencode.json`.
 
 ```bash
 # OpenAI (for gpt-5.2, gpt-5.3-codex)
@@ -49,6 +49,9 @@ OPENAI_API_KEY=sk-...
 AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 AWS_REGION=us-east-1
+
+# Motif MCP (required if you use the `motif` MCP server)
+E2E_AUTH_SECRET=...
 ```
 
 ### 4. Run OpenCode
@@ -63,7 +66,7 @@ opencode
 |------|---------|
 | `opencode.json` | Main config: agents, models, prompts |
 | `prompts/*.txt` | Agent prompt templates |
-| `plugin/shell-strategy/` | Non-interactive shell rules (from [JRedeker/opencode-shell-strategy](https://github.com/JRedeker/opencode-shell-strategy)) |
+| `plugin/shell-strategy/shell_strategy.md` | Vendored copy of [JRedeker/opencode-shell-strategy](https://github.com/JRedeker/opencode-shell-strategy) (`shell_strategy.md` + `LICENSE` in that folder) |
 | `tools/` | OpenCode plugin tools: plans, audits, progress, journal, handoff, executor status (see below) |
 | `dcp.jsonc` | Dynamic context pruning config (per-model limits + nudge tuning) |
 | `dcp-prompts/overrides/*.md` | DCP nudge text overrides (`customPrompts` in `dcp.jsonc`) |
@@ -77,6 +80,8 @@ opencode
 | `audit.ts` | `audit_write`, `audit_read`, `audit_done` | `.opencode/audits/<slug>.md` — **orchestrator only**; subagents do not call `audit_read`; inline slice context in `task` prompts |
 | `progress.ts` | `progress_update`, `progress_read`, `progress_done` | `.opencode/progress/<plan_slug>.json` — wave state per plan |
 | `audit-progress.ts` | `audit_progress_update`, `audit_progress_read`, `audit_progress_done` | `.opencode/audit-progress/<audit_slug>.json` — wave state per persisted audit |
+| `status.ts` | `status_write`, `status_read`, `status_done` | `.opencode/status/<slug>.json` — compact transient executor scratch state, not transcripts |
+| `journal.ts` | `journal_write`, `journal_read`, `journal_done` | `.opencode/journal.jsonl` — concise durable decisions/contracts/patterns only |
 
 Slug rules and 32KB markdown cap match the plan tools. See `prompts/orchestrator.txt` (`## Persisted audits`) for when to use audits vs plans.
 
